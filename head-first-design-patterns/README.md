@@ -1,5 +1,5 @@
 ##### 内容
-大致总结了自己读这本书（《Head First Design Patterns》）时的重点以及遇到各个问题的所思所想
+大致总结了自己读这本书（[《Head First Design Patterns》](https://www.u-cursos.cl/usuario/f133dab21b6cbf814b4607124f431358/mi_blog/r/head_first_design_patterns.pdf)）时的重点以及遇到各个问题的所思所想
 ##### 时间
 2019年01月01日 ~ 2019年04月15日  
 ~本来计划是三个月读完的，最终还是多了半个月才完成，不过还好保证了一周至少一篇~

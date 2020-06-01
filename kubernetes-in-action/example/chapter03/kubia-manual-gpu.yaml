@@ -1,0 +1,25 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 Pod
+kind: Pod
+metadata:
+  # pod 的名称
+  name: kubia-manual-gpu
+  # pod 的标签
+  labels:
+    creation_method: manual
+    env: prod
+spec:
+  # 节点选择器
+  nodeSelector:
+    # 选择的标签
+    gpu: "true"
+  containers:
+    # 创建容器所使用的镜像
+    - image: idealism/kubia
+      # 容器的名称
+      name: kubia
+      ports:
+        # 应用监听的端口
+        - containerPort: 8080
+          protocol: TCP

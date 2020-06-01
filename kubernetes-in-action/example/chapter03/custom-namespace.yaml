@@ -1,0 +1,7 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 Namespace
+kind: Namespace
+metadata:
+  # 命名空间的名称
+  name: custom-namespace

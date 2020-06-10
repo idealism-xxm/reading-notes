@@ -1,0 +1,26 @@
+# 遵循 batch/v1 版本的 Kubernetes API
+apiVersion: batch/v1
+# 资源类型为 Job
+kind: Job
+metadata:
+  # Job 的名称
+  name: multi-completion-parallel-batch-job
+spec:
+  # 必须确保 5 个 pod 运行完成
+  completions: 5
+  # 最多 2 个 pod 可以并行运行
+  parallelism: 2
+  # 启动 pod 使用的模版
+  template:
+    metadata:
+      # 指定标签为 app=batch-job
+      labels:
+        app: batch-job
+    spec:
+      # Job 不能使用 Always 为默认的重启策略
+      restartPolicy: OnFailure
+      containers:
+        # 容器的名称
+        - name: main
+          # 创建容器所使用的镜像
+          image: idealism/batch-job

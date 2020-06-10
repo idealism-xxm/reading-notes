@@ -1,0 +1,25 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 Pod
+kind: Pod
+metadata:
+  # pod 的名称
+  name: kubia-liveness
+spec:
+  containers:
+    # 创建容器所使用的镜像
+    - image: idealism/kubia-unhealthy
+      # 容器的名称
+      name: kubia
+      ports:
+        # 应用监听的端口
+        - containerPort: 8080
+          protocol: TCP
+      # 开启一个存活探测器
+      livenessProbe:
+        # 存活探测器的类型为 HTTP GET
+        httpGet:
+          # 探测器连接的网络端口
+          port: 8080
+          # 探测器请求的路径
+          path: /

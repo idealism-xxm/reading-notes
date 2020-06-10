@@ -1,0 +1,28 @@
+# 遵循 apps/v1 版本的 Kubernetes API
+apiVersion: apps/v1
+# 资源类型为 DaemonSet
+kind: DaemonSet
+metadata:
+  # DaemonSet 的名称
+  name: ssd-monitor
+spec:
+  # 指定 DaemonSet 操作对象
+  selector:
+    # 需要匹配以下指定的标签
+    matchLabels:
+      app: ssd-monitor
+  # 启动 pod 使用的模版
+  template:
+    metadata:
+      # 指定标签为 app=ssd-monitor
+      labels:
+        app: ssd-monitor
+    spec:
+      # 指定选择具有 disk=ssd 标签的节点部署
+      nodeSelector:
+        disk: ssd
+      containers:
+        # 容器的名称
+        - name: main
+          # 创建容器所使用的镜像
+          image: idealism/ssd-monitor

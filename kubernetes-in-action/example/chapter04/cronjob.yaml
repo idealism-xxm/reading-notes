@@ -1,0 +1,29 @@
+# 遵循 batch/v1beta1 版本的 Kubernetes API
+apiVersion: batch/v1beta1
+# 资源类型为 CronJob
+kind: CronJob
+metadata:
+  # Job 的名称
+  name: batch-job-every-fifteen-minutes
+spec:
+  # Cron 表达式表明当前任务在每天每小时的 0, 15, 30, 45 分运行
+  schedule: "0,15,30,45 * * * *"
+  # 指定最迟必须在预定时间后 15 秒内开始运行，否则就标记为一次失败的 `Job`
+  startingDeadlineSeconds: 15
+  # 创建 Job 使用的模版（可以发现和 batch-job.yaml 的 spec 部分基本一致）
+  jobTemplate:
+    spec:
+      # 启动 pod 使用的模版
+      template:
+        metadata:
+          # 指定标签为 app=periodic-batch-job
+          labels:
+            app: periodic-batch-job
+        spec:
+          # Job 不能使用 Always 为默认的重启策略
+          restartPolicy: OnFailure
+          containers:
+            # 容器的名称
+            - name: main
+              # 创建容器所使用的镜像
+              image: idealism/batch-job

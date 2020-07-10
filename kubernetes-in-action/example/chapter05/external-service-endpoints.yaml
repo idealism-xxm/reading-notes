@@ -1,0 +1,22 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 Endpoints
+kind: Endpoints
+metadata:
+  # Endpoints 的名称，与对应的 Service 名称一致
+  name: external-service
+# 该 Endpoints 的子集
+subsets:
+  # 第一个子集的地址信息
+  - addresses:
+      # 地址包含以下 ip 列表
+      - ip: 11.11.11.11
+      - ip: 22.22.22.22
+    # 第一个子集的端口信息
+    ports:
+      # 每个 ip 可用的端口列表
+      # 【注意】这个名字必须和服务端端口的名字对应
+      - name: http
+        port: 80
+      - name: https
+        port: 443

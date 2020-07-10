@@ -1,0 +1,20 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 Service
+kind: Service
+metadata:
+  # Service 的名称
+  name: external-service
+spec:
+  # 该服务可用的端口
+  ports:
+    # 第一个可用端口的名字
+    - name: http
+      # 可用端口为 80
+      port: 80
+      targetPort: http
+    # 第二个可用端口的名字
+    - name: https
+      # 可用端口为 443
+      port: 443
+      targetPort: https

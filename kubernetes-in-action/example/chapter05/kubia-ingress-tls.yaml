@@ -1,0 +1,31 @@
+# 遵循 extensions/v1beta1 版本的 Kubernetes API
+apiVersion: extensions/v1beta1
+# 资源类型为 Ingress
+kind: Ingress
+metadata:
+  # Ingress 的名称
+  name: kubia
+spec:
+  # 配置 TLS
+  tls:
+    # 第一条配置的域名列表
+    - hosts:
+      - kubia.example.com
+      # 这些域名使用 tls-secret 获得私钥和证书
+      secretName: tls-secret
+  # Ingress 的规则列表
+  rules:
+    # 第一条规则匹配的域名为 kubia.example.com
+    - host: kubia.example.com
+      # 匹配 http
+      http:
+        # 匹配的路径列表
+        paths:
+          # 第一条路径为 /
+          - path: /
+            # 该路径将被转发到的后端服务
+            backend:
+              # 将被转发到 kubia-nodeport 服务
+              serviceName: kubia-nodeport
+              # 对应服务的端口为 80
+              servicePort: 80

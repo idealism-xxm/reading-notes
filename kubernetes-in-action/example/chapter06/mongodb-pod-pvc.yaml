@@ -1,0 +1,31 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 Pod
+kind: Pod
+metadata:
+  # Pod 的名称
+  name: mongodb
+spec:
+  # 该 pod 包含的容器列表
+  containers:
+    # 第一个容器由以下镜像创建
+    - image: mongo
+      # 容器名
+      name: mongodb
+      # 该容器挂载列表
+      volumeMounts:
+        # 将名为 mongodb-data 的卷挂载到容器的 /data/db
+        - name: mongodb-data
+          mountPath: /data/db
+      ports:
+        # 容器端口为 27017
+        - containerPort: 27017
+          # 协议为 TCP
+          protocol: TCP
+  # 该 Pod 的卷列表
+  volumes:
+    # 有一个名为 mongodb-data 的持久卷声明
+    - name: mongodb-data
+      persistentVolumeClaim:
+        # 该持久卷声明的名称为 mongodb-pvc
+        claimName: mongodb-pvc

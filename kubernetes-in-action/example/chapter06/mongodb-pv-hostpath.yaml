@@ -1,0 +1,22 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 PersistentVolume
+kind: PersistentVolume
+metadata:
+  # PV 的名称
+  name: mongodb-pv
+spec:
+  # 该 PV 的大小为 1GB
+  capacity:
+    storage: 1Gi
+  # 访问模式列表
+  accessModes:
+    # 可以被单个客户端挂载为读写模式
+    - ReadWriteOnce
+    # 可以被多个客户端挂载为只读模式
+    - ReadOnlyMany
+  # 当声明被释放后， PV 将被保留（不清理和删除）
+  persistentVolumeReclaimPolicy: Retain
+  # minikube 下指定节点上的路径为一个 hostPath 卷
+  hostPath:
+    path: /tmp/mongodb

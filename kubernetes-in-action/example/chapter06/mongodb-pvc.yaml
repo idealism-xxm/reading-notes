@@ -1,0 +1,20 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 PersistentVolumeClaim
+kind: PersistentVolumeClaim
+metadata:
+  # PVC 的名称
+  name: mongodb-pvc
+spec:
+  # 资源列表
+  resources:
+    # 申请列表
+    requests:
+      # 申请 1GB 的空间
+      storage: 1Gi
+  # 访问模式列表
+  accessModes:
+    # 允许单个客户端挂载为读写模式
+    - ReadWriteOnce
+  # 将在本文最后关于动态配置的部分中介绍
+  storageClassName: ""

@@ -1,0 +1,13 @@
+# 遵循 storage.k8s.io/v1 版本的 Kubernetes API
+apiVersion: storage.k8s.io/v1
+# 资源类型为 StorageClass
+kind: StorageClass
+metadata:
+  # StorageClass 的名称
+  name: fast
+# 用于配置持久卷的插件
+provisioner: k8s.io/minikube-hostpath
+# 传递给插件的参数
+parameters:
+  # 持久卷的类型是 pd-ssd
+  type: pd-ssd

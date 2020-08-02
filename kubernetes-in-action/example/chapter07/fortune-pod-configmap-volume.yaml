@@ -1,0 +1,50 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 Pod
+kind: Pod
+metadata:
+  # Pod 的名称
+  name: fortune-configmap-volume
+spec:
+  # 该 pod 包含的容器列表
+  containers:
+    # 第一个容器由以下镜像创建
+    - image: idealism/fortune
+      # 容器名
+      name: html-generator
+      # 该容器挂载列表
+      volumeMounts:
+        # 将名为 html 的卷挂载到容器的 /var/htdocs
+        - name: html
+          mountPath: /var/htdocs
+    # 第二个容器由以下镜像创建
+    - image: nginx:alpine
+      # 容器名
+      name: web-server
+      # 该容器挂载列表
+      volumeMounts:
+        # 将名为 html 的卷挂载到容器的 /usr/share/nginx/html
+        - name: html
+          mountPath: /usr/share/nginx/html
+          # 该容器对该卷只读
+          readOnly: true
+        # 将名为 config 的卷挂载到容器的 /etc/nginx/conf.d
+        - name: config
+          mountPath: /etc/nginx/conf.d
+          # 该容器对该卷只读
+          readOnly: true
+      # 该容器开放的端口列表
+      ports:
+        # 容器端口为 80
+        - containerPort: 80
+          # 协议为 TCP
+          protocol: TCP
+  # 该 Pod 的卷列表
+  volumes:
+    # 有一个名为 html 的 emptyDir 卷
+    - name: html
+      emptyDir: {}
+    # 有一个名为 config 的 configMap 卷，文件来自 fortune-config 这个 ConfigMap
+    - name: config
+      configMap:
+        name: fortune-config

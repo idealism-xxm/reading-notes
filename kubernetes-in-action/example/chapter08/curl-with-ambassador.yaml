@@ -1,0 +1,19 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 Pod
+kind: Pod
+metadata:
+  # Pod 的名称
+  name: curl-with-ambassador
+spec:
+  # 该 pod 包含的容器列表
+  containers:
+    # 第一个容器由以下镜像创建
+    - image: tutum/curl
+      # 容器名
+      name: main
+      # 启动命令
+      command: ["sleep", "999999"]
+    # 第二个容器是 ambassador 容器，运行 idealism/kubectl-proxy 镜像
+    - image: idealism/kubectl-proxy
+      name: ambassador

@@ -1,0 +1,71 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 Pod
+kind: Pod
+metadata:
+  # Pod 的名称
+  name: downward
+spec:
+  # 该 pod 包含的容器列表
+  containers:
+    # 第一个容器由以下镜像创建
+    - image: busybox
+      # 容器名
+      name: main
+      # 启动命令
+      command: ["sleep", "999999"]
+      # 资源列表
+      resources:
+        # 请求的资源： cpu 为 15ms ，内存为 100K
+        requests:
+          cpu: 15m
+          memory: 100Ki
+        # 限制的最大资源： cpu 为 100m ，内存为 20M
+        limits:
+          cpu: 100m
+          memory: 20Mi
+      # 环境变量列表
+      env:
+        # 第一个环境变量名为 POD_NAME
+        - name: POD_NAME
+          # 值来自 pod 描述文件中 metadata.name 指定的值
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          # 值来自 pod 描述文件中 metadata.namespace 指定的值
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          # 值来自 pod 状态的 podIP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: NODE_NAME
+          # 值来自 pod 描述文件中 spec.nodeName 指定的值
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: SERVICE_ACCOUNT
+          # 值来自 pod 描述文件中 spec.serviceAccountName 指定的值
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.serviceAccountName
+        # 容器请求/限制的 CPU 和内存使用量是引用 resourceFieldRef 字段
+        - name: CONTAINER_CPU_REQUEST_MILLICORES
+          valueFrom:
+            resourceFieldRef:
+              resource: requests.cpu
+              # 对于资源相关的字段，定义一个基数单位，从而生成每一部分的值
+              # requests.cpu 的基数单位是 1m ，
+              # 那么 CONTAINER_CPU_REQUEST_MILLICORES 的值就是 15
+              divisor: 1m
+        - name: CONTAINER_MEMORY_LIMIT_KIGIBYTES
+          # 值来自 pod 描述文件中 spec.containers.resources.limits.memory 指定的值
+          valueFrom:
+            resourceFieldRef:
+              resource: limits.memory
+              # limits.memory 的基数单位是 1Ki ，
+              # 那么 CONTAINER_MEMORY_LIMIT_KIGIBYTES 的值就是 20480
+              divisor: 1Ki

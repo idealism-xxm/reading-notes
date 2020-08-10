@@ -1,0 +1,74 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 Pod
+kind: Pod
+metadata:
+  # Pod 的名称
+  name: downward
+  # pod 的标签
+  labels:
+    foo: bar
+  # pod 的注解
+  annotations:
+    key1: value1
+    key2: |
+      multi
+      line
+      value
+spec:
+  # 该 pod 包含的容器列表
+  containers:
+    # 第一个容器由以下镜像创建
+    - image: busybox
+      # 容器名
+      name: main
+      # 启动命令
+      command: ["sleep", "999999"]
+      # 资源列表
+      resources:
+        # 请求的资源： cpu 为 15ms ，内存为 100K
+        requests:
+          cpu: 15m
+          memory: 100Ki
+        # 限制的最大资源： cpu 为 100m ，内存为 20M
+        limits:
+          cpu: 100m
+          memory: 20Mi
+      # 挂载的卷列表
+      volumeMounts:
+      # 将 downward 卷挂载到 /etc/downward
+      - name: downward
+        mountPath: /etc/downward
+  # 卷列表
+  volumes:
+  # 第一个是名为 downward 的 downwardAPI 卷
+  - name: downward
+    downwardAPI:
+      # 条目列表
+      items:
+      # 配置方式基本和环境变量一致，使用 fieldRef 字段引用 pod 描述文件中对应的值
+      - path: "podName"
+        fieldRef:
+          fieldPath: metadata.name
+      - path: "podNamespace"
+        fieldRef:
+          fieldPath: metadata.namespace
+      # 使用 downwardAPI 卷可以暴露 标签和注解
+      - path: "labels"
+        fieldRef:
+          fieldPath: metadata.labels
+      - path: "annotations"
+        fieldRef:
+          fieldPath: metadata.annotations
+      # 由于 downwardAPI 卷是所有容器共用的，
+      # 所以暴露容器相关信息时还需要为每个容器进行设置
+      - path: "containerCpuRequestMilliCores"
+        resourceFieldRef:
+          containerName: main
+          resource: requests.cpu
+          divisor: 1m
+      - path: "containerMemoryLimitBytes"
+        resourceFieldRef:
+          containerName: main
+          resource: limits.memory
+          divisor: 1

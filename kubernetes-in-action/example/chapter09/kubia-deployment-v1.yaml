@@ -1,0 +1,31 @@
+# 遵循 apps/v1 版本的 Kubernetes API
+apiVersion: apps/v1
+# 资源类型为 Deployment
+kind: Deployment
+metadata:
+  # Deployment 的名称
+  name: kubia
+spec:
+  # 指定与标签选择器匹配的 pod 数目为 3
+  replicas: 3
+  # 指定 Deployment 操作对象
+  selector:
+    # 需要匹配以下指定的标签
+    matchLabels:
+      app: kubia
+  # 启动 pod 使用的模版（可以发现以下与 kubia-manual.yaml 一致）
+  template:
+    metadata:
+      # 指定标签为 app=kubia
+      labels:
+        app: kubia
+    spec:
+      containers:
+        # 容器的名称
+        - name: kubia
+          # 创建容器所使用的镜像
+          image: idealism/kubia:v1
+          # 应用监听的端口
+          ports:
+            - containerPort: 8080
+              protocol: TCP

@@ -1,0 +1,19 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 Service
+kind: Service
+metadata:
+  # Service 的名称
+  name: kubia-public
+spec:
+  # 该服务可用的端口
+  ports:
+    # 第一个可用端口的名字
+    - name: http
+      # 可用端口为 80
+      port: 80
+      # 服务将连接转发到容器的 8080 端口
+      targetPort: 8080
+  # 具有 app=kubia 标签的 pod 都属于该服务
+  selector:
+    app: kubia

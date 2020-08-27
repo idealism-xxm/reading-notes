@@ -1,0 +1,72 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 List ，表示我们可以使用一个 yaml 文件创建多个资源对象
+# 效果和三横线 (---) 区分多个资源一致
+kind: List
+items:
+  # 第一个资源遵循 v1 版本的 Kubernetes API
+  - apiVersion: v1
+    # 资源类型为 PersistentVolume
+    kind: PersistentVolume
+    metadata:
+      # PV 的名称
+      name: pv-a
+    spec:
+      # 该 PV 的大小为 1MB
+      capacity:
+        storage: 1Mi
+      # 访问模式列表
+      accessModes:
+        # 可以被单个客户端挂载为读写模式
+        - ReadWriteOnce
+      # 当声明被释放后， PV 将被回收
+      persistentVolumeReclaimPolicy: Recycle
+      # 指定 storageClassName 为 standard
+      storageClassName: standard
+      # minikube 下指定节点上的路径为一个 hostPath 卷
+      hostPath:
+        path: /tmp/pv-a
+  # 第二个资源遵循 v1 版本的 Kubernetes API
+  - apiVersion: v1
+    # 资源类型为 PersistentVolume
+    kind: PersistentVolume
+    metadata:
+      # PV 的名称
+      name: pv-b
+    spec:
+      # 该 PV 的大小为 1MB
+      capacity:
+        storage: 1Mi
+      # 访问模式列表
+      accessModes:
+        # 可以被单个客户端挂载为读写模式
+        - ReadWriteOnce
+      # 当声明被释放后， PV 将被回收
+      persistentVolumeReclaimPolicy: Recycle
+      # 指定 storageClassName 为 standard
+      storageClassName: standard
+      # minikube 下指定节点上的路径为一个 hostPath 卷
+      hostPath:
+        path: /tmp/pv-b
+  # 第三个资源遵循 v1 版本的 Kubernetes API
+  - apiVersion: v1
+    # 资源类型为 PersistentVolume
+    kind: PersistentVolume
+    metadata:
+      # PV 的名称
+      name: pv-c
+    spec:
+      # 该 PV 的大小为 1MB
+      capacity:
+        storage: 1Mi
+      # 访问模式列表
+      accessModes:
+        # 可以被单个客户端挂载为读写模式
+        - ReadWriteOnce
+      # 当声明被释放后， PV 将被回收
+      persistentVolumeReclaimPolicy: Recycle
+      # 指定 storageClassName 为 standard
+      storageClassName: standard
+      # minikube 下指定节点上的路径为一个 hostPath 卷
+      hostPath:
+        path: /tmp/pv-c

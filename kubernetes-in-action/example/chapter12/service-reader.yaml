@@ -1,0 +1,16 @@
+# 遵循 rbac.authorization.k8s.io/v1 版本的 Kubernetes API
+apiVersion: rbac.authorization.k8s.io/v1
+# 资源类型为 Role
+kind: Role
+metadata:
+  # 该 Role 处于 foo 命名空间中
+  namespace: foo
+  # Role 的名称
+  name: service-reader
+rules:
+  # Servcie 是核心 apiGroup 的资源，所以没有 apiGroup 名，就是 ""
+  - apiGroups: [""]
+    # 允许获取单个 Service 和列出所有允许的服务
+    verbs: ["get", "list"]
+    # 指定资源必须使用复数的形式
+    resources: ["services"]

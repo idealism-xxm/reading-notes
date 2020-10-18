@@ -1,0 +1,21 @@
+# 遵循 networking.k8s.io/v1 版本的 Kubernetes API
+apiVersion: networking.k8s.io/v1
+# 资源类型为 NetworkPolicy
+kind: NetworkPolicy
+metadata:
+  # NetworkPolicy 的名称
+  name: shppingcart-netpolicy
+spec:
+  # 这个策略确保了对具有 app=shopping-cart 标签的 Pod 的访问安全性
+  podSelector:
+    matchLabels:
+      app: shopping-cart
+  ingress:
+    - from:
+        # 允许具有 app=webserver 标签的命名空间中的 Pod 的访问
+        - namespaceSelector:
+            matchLabels:
+              tenant: manning
+          # 允许访问的端口为 80
+          ports:
+            - port: 80

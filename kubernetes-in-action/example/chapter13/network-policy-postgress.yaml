@@ -1,0 +1,21 @@
+# 遵循 networking.k8s.io/v1 版本的 Kubernetes API
+apiVersion: networking.k8s.io/v1
+# 资源类型为 NetworkPolicy
+kind: NetworkPolicy
+metadata:
+  # NetworkPolicy 的名称
+  name: postgres-netpolicy
+spec:
+  # 这个策略确保了对具有 app=database 标签的 Pod 的访问安全性
+  podSelector:
+    matchLabels:
+      app: database
+  ingress:
+    - from:
+        # 允许具有 app=webserver 标签的 Pod 的访问
+        - podSelector:
+            matchLabels:
+              app: webserver
+          # 允许访问的端口为 5432
+          ports:
+            - port: 5432

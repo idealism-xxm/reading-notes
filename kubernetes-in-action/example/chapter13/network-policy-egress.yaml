@@ -1,0 +1,18 @@
+# 遵循 networking.k8s.io/v1 版本的 Kubernetes API
+apiVersion: networking.k8s.io/v1
+# 资源类型为 NetworkPolicy
+kind: NetworkPolicy
+metadata:
+  # NetworkPolicy 的名称
+  name: egress-netpolicy
+spec:
+  # 这个策略确保了对具有 app=webserver 标签的 Pod 的访问安全性
+  podSelector:
+    matchLabels:
+      app: webserver
+  egress:
+    - to:
+        # 允许访问具有 app=webserver 标签的 Pod
+        - podSelector:
+            matchLabels:
+              tenant: database

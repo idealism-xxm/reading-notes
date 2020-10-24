@@ -1,0 +1,49 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 LimitRange
+kind: LimitRange
+metadata:
+  # LimitRange 的名称
+  name: limit-range
+spec:
+  limits:
+    # 第一个限制条件对 Pod 生效
+    - type: Pod
+      # 设置 Pod 中所有容器的 CPU 和内存的请求量（限制量）之和的最小值
+      min:
+        cpu: 50m
+        memory: 5Mi
+      # 设置 Pod 中所有容器的 CPU 和内存的请求量（限制量）之和的最大值
+      max:
+        cpu: 1
+        memory: 1Gi
+    # 第二个限制条件对容器生效
+    - type: Container
+      # 容器没有指定 CPU 或内存请求量时设置的默认值
+      defaultRequest:
+        cpu: 100m
+        memory: 10Mi
+      # 容器没有指定 CPU 或内存限制量时设置的默认值
+      default:
+        cpu: 200m
+        memory: 100Mi
+      # 设置容器的 CPU 和内存的请求量（限制量）的最小值
+      min:
+        cpu: 50m
+        memory: 5Mi
+      # 设置容器的 CPU 和内存的请求量（限制量）的最小值
+      max:
+        cpu: 1
+        memory: 1Gi
+      # 设置容器的限制量与请求量的最大比例
+      maxLimitRequestRatio:
+        cpu: 4
+        memory: 10
+    # 第三个限制条件对 PersistentVolumeClaim 生效
+    - type: PersistentVolumeClaim
+      # 设置 PVC 存储容量的最小值
+      min:
+        storage: 1Gi
+      # 设置 PVC 存储容量的最大值
+      max:
+        storage: 10Gi

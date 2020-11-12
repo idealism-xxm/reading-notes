@@ -1,0 +1,27 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 Pod
+kind: Pod
+metadata:
+  # Pod 的名称
+  name: fortune-client
+spec:
+  # init 容器列表
+  initContainers:
+    # 第一个 init 容器的名称
+    - name: init
+      image: busybox
+      # 该 init 容器运行一个循环，不停请求 fortune 服务，直至 fortune 服务启动
+      command:
+        - sh
+        - -c
+        - 'while true; do echo "Waiting for fortune service to come up..."; wget http://fortune -q -T 1 -O /dev/null >/dev/null 2>/dev/null && break; sleep 1; done; echo "Service is up! Starting main container."'
+  # 主容器列表
+  containers:
+    - image: busybox
+      name: main
+      # 该主容器每 10 秒中请求 fortune 服务，并输出响应
+      command:
+        - sh
+        - -c
+        - 'echo "Main container started. Reading fortune very 10 seconds."; while true; do echo "-------------"; wget -q -O - http://fortune; sleep 10; done'

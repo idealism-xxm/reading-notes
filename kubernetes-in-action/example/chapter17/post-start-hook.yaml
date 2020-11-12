@@ -1,0 +1,19 @@
+# 遵循 v1 版本的 Kubernetes API
+apiVersion: v1
+# 资源类型为 Pod
+kind: Pod
+metadata:
+  # Pod 的名称
+  name: pod-with-poststart-hook
+spec:
+  containers:
+    - image: idealism/kubia
+      name: kubia
+      lifecycle:
+        # postStart 钩子是在容器启动时执行的
+        postStart:
+          exec:
+            command:
+              - sh
+              - -c
+              - "echo 'hook will fail with exit code 15'; sleep 5 ; exit 15"

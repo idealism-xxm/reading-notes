@@ -15,26 +15,187 @@ ncopy:
 
 ##################################################################
 # You can modify this portion
-    # Loop header
-    xorq %rax,%rax      # count = 0;
-    irmovq $1, %r8
-    andq %rdx,%rdx		# len > 0?
-    jmp Test            # Goto Test:
+    iaddq $-10, %rdx       # len -= 10
+    jl Search_0_9          # if len < 0, goto Search_0_9
 
 Loop:
-    mrmovq (%rdi), %r10 # read val from src...
-    xorq %r9, %r9       # diff = 0
-    # 将 rmmovq 与 mrmovq 分开，减少因为加载/使用冒险而产生的一个周期暂停
-    # （也可以修改控制逻辑，使这种情况不需要暂停，控制逻辑的修改对应家庭作业 `4.57` (`P329`)）
-    rmmovq %r10, (%rsi) # ...and store it to dst
-    andq %r10, %r10     # val > 0?
-    cmovg %r8, %r9      # if so, diff = 1
-    addq %r9, %rax		# count += diff
-    iaddq $8, %rdi		# src++
-    iaddq $8, %rsi		# dst++
-    iaddq $-1, %rdx		# len--
-Test:
-    jg Loop             # if so, goto Loop:
+Copy1:
+    # 拷贝第一个元素并计数，为了充分利用暂停，我们再读取下一个需要拷贝的元素
+    mrmovq (%rdi), %r10    # Get src[i]
+    mrmovq 8(%rdi), %r11   # Get src[i + 1]
+    rmmovq %r10, (%rsi)    # Store src[i] to dst + i
+    andq %r10, %r10        # if src[i] <= 0
+    jle Copy2              # if so, goto Copy2
+    iaddq $1, %rax		   # count += 1
+Copy2:
+    # 拷贝第二个元素并计数，为了充分利用暂停，我们再读取下一个需要拷贝的元素
+    mrmovq 16(%rdi), %r10  # Get src[i + 2]
+    rmmovq %r11, 8(%rsi)   # Store src[i + 1] to dst + i + 1
+    andq %r11, %r11        # if src[i + 1] <= 0
+    jle Copy3              # if so, goto Copy3
+    iaddq $1, %rax		   # count += 1
+Copy3:
+    # 拷贝第三个元素并计数，为了充分利用暂停，我们再读取下一个需要拷贝的元素
+    mrmovq 24(%rdi), %r11  # Get src[i + 3]
+    rmmovq %r10, 16(%rsi)  # Store src[i + 2] to dst + i + 2
+    andq %r10, %r10        # if src[i + 2] <= 0
+    jle Copy4              # if so, goto Copy4
+    iaddq $1, %rax		   # count += 1
+Copy4:
+    # 拷贝第四个元素并计数，为了充分利用暂停，我们再读取下一个需要拷贝的元素
+    mrmovq 32(%rdi), %r10  # Get src[i + 4]
+    rmmovq %r11, 24(%rsi)  # Store src[i + 3] to dst + i + 3
+    andq %r11, %r11        # if src[i + 3] <= 0
+    jle Copy5              # if so, goto Copy5
+    iaddq $1, %rax		   # count += 1
+Copy5:
+    # 拷贝第五个元素并计数，为了充分利用暂停，我们再读取下一个需要拷贝的元素
+    mrmovq 40(%rdi), %r11  # Get src[i + 5]
+    rmmovq %r10, 32(%rsi)  # Store src[i + 4] to dst + i + 4
+    andq %r10, %r10        # if src[i + 4] <= 0
+    jle Copy6              # if so, goto Copy6
+    iaddq $1, %rax		   # count += 1
+Copy6:
+    # 拷贝第六个元素并计数，为了充分利用暂停，我们再读取下一个需要拷贝的元素
+    mrmovq 48(%rdi), %r10  # Get src[i + 6]
+    rmmovq %r11, 40(%rsi)  # Store src[i + 5] to dst + i + 5
+    andq %r11, %r11        # if src[i + 5] <= 0
+    jle Copy7              # if so, goto Copy7
+    iaddq $1, %rax		   # count += 1
+Copy7:
+    # 拷贝第七个元素并计数，为了充分利用暂停，我们再读取下一个需要拷贝的元素
+    mrmovq 56(%rdi), %r11  # Get src[i + 7]
+    rmmovq %r10, 48(%rsi)  # Store src[i + 6] to dst + i + 6
+    andq %r10, %r10        # if src[i + 6] <= 0
+    jle Copy8              # if so, goto Copy8
+    iaddq $1, %rax		   # count += 1
+Copy8:
+    # 拷贝第八个元素并计数，为了充分利用暂停，我们再读取下一个需要拷贝的元素
+    mrmovq 64(%rdi), %r10  # Get src[i + 8]
+    rmmovq %r11, 56(%rsi)  # Store src[i + 7] to dst + i + 7
+    andq %r11, %r11        # if src[i + 7] <= 0
+    jle Copy9              # if so, goto Copy9
+    iaddq $1, %rax		   # count += 1
+Copy9:
+    # 拷贝第九个元素并计数，为了充分利用暂停，我们再读取下一个需要拷贝的元素
+    mrmovq 72(%rdi), %r11  # Get src[i + 9]
+    rmmovq %r10, 64(%rsi)  # Store src[i + 8] to dst + i + 8
+    andq %r10, %r10        # if src[i + 8] <= 0
+    jle Copy10             # if so, goto Copy10
+    iaddq $1, %rax		   # count += 1
+Copy10:
+    # 拷贝第十个元素并计数
+    rmmovq %r11, 72(%rsi)  # Store src[i + 10] to dst + i + 10
+    andq %r11, %r11        # if src[i + 10] <= 0
+    jle LoopAddPtr         # if so, goto LoopAddPtr
+    iaddq $1, %rax		   # count += 1
+
+LoopAddPtr:
+    iaddq $80, %rdi		   # src += 10
+    iaddq $80, %rsi		   # dst += 10
+LoopTest:
+    iaddq $-10, %rdx       # len -= 10
+    jge Loop               # if so, goto Loop:
+
+    # 处理可能剩余的 0~9 个元素： -10 <= (%rdx) <= -1
+    # 先在二叉树上搜索到对应的片段，然后开始执行
+Search_0_9:
+    iaddq $9, %rdx         # (%rdx) = len % 10 - 1
+    jg Search_2_9          # 2 <= len % 10 <= 9
+    je Remain1             # len % 10 = 1
+    # 注意这里为了省字节和一个周期直接 ret 了，不用先跳到 Remain0
+    ret                    # len % 10 = 0
+Search_2_9:
+    iaddq $-2, %rdx        # (%rdx) = len % 10 - 3
+    jg Search_4_9          # 4 <= len % 10 <= 9
+    # 注意这里一定要先跳到 Remain2 ，再跳到 Remain3
+    # 贪心考虑相邻的两个长度 len 和 len + 1 ，让 len + 1 多执行一个周期对 CPE 增幅贡献更小
+    jl Remain2             # len % 10 = 2
+    je Remain3             # len % 10 = 3
+Search_4_9:
+    iaddq $-2, %rdx        # (%rdx) = len % 10 - 5
+    jg Search_7_9          # 7 <= len % 10 <= 9
+    # 注意这里一定要先跳到 Remain4 ，再跳到 Remain5
+    # 贪心考虑相邻的两个长度 len 和 len + 1 ，让 len + 1 多执行一个周期对 CPE 增幅贡献更小
+    jl Remain4             # len % 10 = 4
+    je Remain5             # len % 10 = 5
+Search_7_9:
+    iaddq $-2, %rdx        # (%rdx) = len % 10 - 7
+    # 这里也是贪心逻辑，考虑到想了的四个长度，越长的多执行周期对 CPE 增幅贡献更小
+    jg Search_8_9          # 7 <= len % 10 <= 9
+    # 注意这里一定要先跳到 Remain4 ，再跳到 Remain5
+    # 贪心考虑相邻的两个长度 len 和 len + 1 ，让 len + 1 多执行一个周期对 CPE 增幅贡献更小
+    jl Remain6             # len % 10 = 6
+    je Remain7             # len % 10 = 7
+Search_8_9:
+    iaddq $-2, %rdx        # (%rdx) = len % 10 - 9
+    jl Remain8             # len % 10 = 8
+    # len % 10 = 9 不用跳转
+
+Remain9:
+    mrmovq 64(%rdi), %r10  # Get src[i + 8]
+    rmmovq %r10, 64(%rsi)  # Store src[i + 8] to dst + i + 8
+    andq %r10, %r10        # if src[i + 8] <= 0
+Remain8:
+    mrmovq 56(%rdi), %r10  # Get src[i + 7]
+    jle Remain8_store      # if src[i + 8] <= 0, goto Remain8_store
+    iaddq $1, %rax		   # count += 1
+Remain8_store:
+    rmmovq %r10, 56(%rsi)  # Store src[i + 7] to dst + i + 7
+    andq %r10, %r10        # if src[i + 7] <= 0
+Remain7:
+    mrmovq 48(%rdi), %r10  # Get src[i + 6]
+    jle Remain7_store      # if src[i + 7] <= 0, goto Remain7_store
+    iaddq $1, %rax		   # count += 1
+Remain7_store:
+    rmmovq %r10, 48(%rsi)  # Store src[i + 6] to dst + i + 6
+    andq %r10, %r10        # if src[i + 6] <= 0
+Remain6:
+    mrmovq 40(%rdi), %r10  # Get src[i + 5]
+    jle Remain6_store      # if src[i + 6] <= 0, goto Remain6_store
+    iaddq $1, %rax		   # count += 1
+Remain6_store:
+    rmmovq %r10, 40(%rsi)  # Store src[i + 5] to dst + i + 5
+    andq %r10, %r10        # if src[i + 5] <= 0
+Remain5:
+    mrmovq 32(%rdi), %r10  # Get src[i + 4]
+    jle Remain5_store      # if src[i + 5] <= 0, goto Remain5_store
+    iaddq $1, %rax		   # count += 1
+Remain5_store:
+    rmmovq %r10, 32(%rsi)  # Store src[i + 4] to dst + i + 4
+    andq %r10, %r10        # if src[i + 4] <= 0
+Remain4:
+    mrmovq 24(%rdi), %r10  # Get src[i + 3]
+    jle Remain4_store      # if src[i + 4] <= 0, goto Remain4_store
+    iaddq $1, %rax		   # count += 1
+Remain4_store:
+    rmmovq %r10, 24(%rsi)  # Store src[i + 3] to dst + i + 3
+    andq %r10, %r10        # if src[i + 3] <= 0
+Remain3:
+    mrmovq 16(%rdi), %r10  # Get src[i + 2]
+    jle Remain3_store      # if src[i + 3] <= 0, goto Remain3_store
+    iaddq $1, %rax		   # count += 1
+Remain3_store:
+    rmmovq %r10, 16(%rsi)  # Store src[i + 2] to dst + i + 2
+    andq %r10, %r10        # if src[i + 2] <= 0
+Remain2:
+    mrmovq 8(%rdi), %r10   # Get src[i + 1]
+    jle Remain2_store      # if src[i + 2] <= 0, goto Remain2_store
+    iaddq $1, %rax		   # count += 1
+Remain2_store:
+    rmmovq %r10, 8(%rsi)   # Store src[i + 1] to dst + i + 1
+    andq %r10, %r10        # if src[i + 1] <= 0
+Remain1:
+    mrmovq (%rdi), %r10    # Get src[i]
+    jle Remain1_store      # if src[i + 1] <= 0, goto Remain1_store
+    iaddq $1, %rax		   # count += 1
+Remain1_store:
+    rmmovq %r10, (%rsi)    # Store src[i] to dst + i
+    andq %r10, %r10        # if src[i] <= 0
+    jl Remain0             # if so, goto Remain0
+    iaddq $1, %rax		   # count += 1
+    # 剩余 0 个不需要任何处理
+Remain0:
 ##################################################################
 # Do not modify the following section of code
 # Function epilogue.

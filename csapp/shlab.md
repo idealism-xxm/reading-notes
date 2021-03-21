@@ -157,9 +157,18 @@ Linux 信号允许进程和内核中断其他进程，它通知进程系统中�
 
 ## 准备
 
-可以在 [官网](http://csapp.cs.cmu.edu/3e/labs.html) 下载 Architecture Lab 相关的程序。
+可以在 [官网](http://csapp.cs.cmu.edu/3e/labs.html) 下载 Shell Lab 相关的程序。
 
-开始前需要阅读 [Shell Lab writeup](http://csapp.cs.cmu.edu/3e/shlab.pdf) ，可以知道本次 Lab 已经帮我们搭建好了一个 shell 程序的框架，只需要我们完成几个必备的功能即可。
+开始前需要阅读 [Shell Lab writeup](http://csapp.cs.cmu.edu/3e/shlab.pdf) ，可以知道本次 Lab 已经帮我们搭建好了一个 shell 程序的框架，只需要我们完成以下几个必备的功能即可：
+
+- `eval`: 解析并执行命令行，大约 70 行
+- `bulitin_cmd`: 识别并执行内置命令 (`quit`, `fg`, `bg`, `jobs`)，大约 25 行
+- `do_bgfg`: 模拟内置命令 `fg` 和 `bg` ，大约 50 行
+- `waitfg`: 等待一个前台作业完成，大约 20 行
+- `sigchld_handler`: 响应 `SIGCHLD` 信号，大约 80 行
+- `sigint_handler`: 响应 `SIGINT` (`ctrl-c`) 信号，大约 15 行
+- `sigtstp_handler`: 响应 `SIGTSTP` (`ctrl-z`) 信号，大约 15 行
+
 
 本次需要使用的程序依旧需要在 Docker 中运行，将本地 Lab 的目录挂载进容器中即可：
 
@@ -173,8 +182,361 @@ docker run -ti -v {PWD}:/csapp ubuntu:18.04
 apt-get update && apt-get -y install gcc make flex bison libgetopt-complete-perl
 ```
 
-然后就可以愉快的开始闯关了。
+然后就可以愉快地开始闯关了。
 
 ## 闯关
+
+闯关开始前，再仔细看看我们需要实现的 `tsh` 所需具备的特性：
+
+- 提示符为 `tsh> ` ，这个自带框架已经具备了，无需修改
+- 命令行由一个命令 `name` 和任意数量的参数组成，它们之间通过一个或多个空格分隔。如果 `name` 是一个内置命令，则立刻执行，然后等待下一条命令行；其他情况 `name` 被认为是一个可执行文件的路径，则在子进程中运行这个可执行文件
+- 无需支持管道 (`|`) 和 I/O 重定向 (`<`, `>`)
+- `ctrl-c` (`ctrl-z`) 会引起一个 `SIGINT` (`SIGTSTP`) 信号，传给当前的前台作业和它所有的子进程；如果没有前台作业，则无事发生
+- 如果命令行以 `&` 结尾，则作业会运行在后台，否则作业会运行在前台
+- 每个作业都有唯一的进程 ID (PID) 和作业 ID (JID) 。在命令行中 `<job>` 可通过以下方式引用：`5` 表示 PID ，`%5` 表示 JID
+- 支持以下内置命令
+    - `quit`: 终止 shell
+    - `jobs`: 列出所有后台作业
+    - `bg <job>`: 通过发送 `SIGCONT`信号重启作业 `<job>` 并运行在后台中
+    - `fg <job>`: 通过发送 `SIGCONT`信号重启作业 `<job>` 并运行在前台中
+- 处理所有的僵尸进程。如果一个作业由于一个未响应的信号终止，那么 `tsh` 应该识别出这个事件，并打印该作业的 PID 和该信号的描述
+
+### 解析命令并执行
+
+目前只有一个 shell 框架，编译后运行，输入任何命令都无作用，所以我们首先就是要实现 `eval` 函数，确保能解析命令并执行。
+
+这一部分在书中 `P525` 给出过示例，我们可以参考并完善。框架已经帮我们抽离了 `eval` 所需要执行的三个子函数，并已经实现了 `parseline` 去解析命令行，让我们专心于 shell 本身的逻辑。
+
+我们先完成剩余的两个子函数：
+
+#### `builtin_cmd`
+
+识别并执行内置命令，如果是内置命令则执行并返回 1 ，不是内置命令则返回 0 。其中内置命令对应的函数 `listjobs` 和 `do_bgfg` 还未实现，等我们进一步完善了 `jobs` 相关的部分再去实现。
+
+```c
+int builtin_cmd(char **argv) {
+    // 识别到 quiz 内置命令，直接终止 shell
+    if (!strcmp(argv[0], "quit")) {
+        exit(0);
+    }
+    // 识别到 jobs 内置命令，执行 listjobs 后返回 1
+    if (!strcmp(argv[0], "jobs")) {
+        listjobs(jobs);
+        return 1;
+    }
+    // 识别到 bg <job> 或者 fg <job> 内置命令，执行 do_bgfg 后返回 1
+    if (!strcmp(argv[0], "bg") || !strcmp(argv[0], "fg")) {
+        do_bgfg(argv);
+        return 1;
+    }
+
+    return 0;     /* not a builtin command */
+}
+```
+
+#### `waitfg`
+
+阻塞当前进程，并等待指定的子进程完成，用于等待前台作业完成。
+
+书中 `P525` 的示例给出了如下的等待前台作业的代码：
+
+```c
+void waitfg(pid_t pid) {
+    int status;
+    if (waitpid(pid, &status, 0) < 0) {
+        unix_error("waitfg: waitpid error");
+    }
+}
+```
+
+不过我们在信号处理程序 `sigchld_handler` 中也会调用 `waitpid` ，所以官方提示建议我们使用轮询的方式等待前台作业完成，仅在 `sigchld_handler` 中调用 `waitpid` 。
+
+```c
+void waitfg(pid_t pid) {
+    // 当作业列表中的前台作业是 pid ，则先睡 1s
+    while(fgpid(jobs) == pid) {
+        sleep(0);
+        // 书中 P545 提到使用 sigsuspend 是一个更合适的解决方法
+    }
+}
+```
+
+#### `eval`
+
+现在我们可以完成 `eval` 函数了，实现解析并执行命令行的功能，并支持前台作业等待子进程完成。
+
+```c
+void eval(char *cmdline) {
+    // 存储本次命令行的命令和参数
+    char *argv[MAXARGS];
+
+    // 判断是否是后台作业
+    // 框架已经完成了 parseline ，我们直接调用解析即可
+    int is_bg = parseline(cmdline, argv);
+    // 忽略空行
+    if (argv[0] == NULL) {
+        return;
+    }
+
+    // 执行内置命令，如果是内置命令，则直接返回
+    if (builtin_cmd(argv)) {
+        return;
+    }
+
+    // 子进程 PID
+    pid_t pid;
+    // 执行可执行文件
+    if ((pid = fork()) == 0) {
+        // 子进程使用 execve 运行可执行文件
+        if (execve(argv[0], argv, environ) < 0) {
+            printf("tsh: command not found: %s\n", argv[0]);
+            exit(0);
+        }
+        // execve 只有失败才会返回，所以成功了不会执行后面的语句，
+        // 会执行可执行文件的主函数
+    }
+    // 这里开始必定是父进程才会执行
+
+    if (is_bg) {
+        // 如果是后台作业，则输出提示信息
+        printf("[%d] (%d) %s", 0, pid, cmdline);
+    } else {
+        // 如果是前台作业，则阻塞至子进程结束
+        waitfg(pid);
+    }
+}
+```
+
+至此，我们基本完成了 `eval` 的全部功能，但是还缺少 `jobs` 相关的功能，所以我们现在不能执行其余三个内置命令，也无法打印后台作业的 JID 。
+
+现在可以先运行测试用例 `make test01`, `make test02`, `make test03` ，发现输出都与标准程序输出一致，证明我们代码正确无误。而 `make test04` 需要我们正确输出后台作业的 JID ，这部分还未实现，所以接下来实现后台作业相关部分。
+
+### 正确处理后台作业
+
+后台作业列表相关的子函数已经被实现了，现在需要我们在适当的位置正确调用即可。书中 8.5.6 节 (`P540`) 已经讲过添加作业和删除作业分别在主程序和信号处理程序中，且都会操作全局变量 `jobs` ，虽然它们不是并发的，但由于中断可能打破非原子操作，那么还是有可能存在并发问题，所以我们需要在进行这两个操作时阻塞所有信号防止被打断。
+
+#### 添加作业
+
+我们需要在 `eval` 中再加上添加作业的相关代码，这里为了防止出现并发问题，就需要在 `fork` 前阻塞 `SIGCHLD` 信号，防止在 `addjob` 调用前， `SIGCHLD` 的信号处理程序先调用 `deletejob` 。
+
+同时闯关开始时提到需要具备以下特性：
+
+> `ctrl-c` (`ctrl-z`) 会引起一个 `SIGINT` (`SIGTSTP`) 信号，传给当前的前台作业和它所有的子进程；如果没有前台作业，则无事发生
+
+所以我们要将给子进程重新开一个进程组，方便后面直接通过调用 `kill(-pid, sig)` 将信号传递给前台作业 `pid` 及其所有的子进程。
+
+```c
+void eval(char *cmdline) {
+    // 存储本次命令行的命令和参数
+    char *argv[MAXARGS];
+
+    // 判断是否是后台作业
+    // 框架已经完成了 parseline ，我们直接调用解析即可
+    int is_bg = parseline(cmdline, argv);
+    // 忽略空行
+    if (argv[0] == NULL) {
+        return;
+    }
+
+    // 执行内置命令，如果是内置命令，则直接返回
+    if (builtin_cmd(argv)) {
+        return;
+    }
+
+    // 先阻塞 SIGCHLD 信号
+    sigset_t mask_one, prev_one;
+    Sigemptyset(&mask_one);
+    Sigaddset(&mask_one, SIGCHLD);
+    Sigprocmask(SIG_BLOCK, &mask_one, &prev_one);
+
+    // 子进程 PID
+    pid_t pid;
+    // 执行可执行文件
+    if ((pid = Fork()) == 0) {
+        // 子进程继承了父进程的被阻塞集合，先解除阻塞
+        Sigprocmask(SIG_SETMASK, &prev_one, NULL);
+        // 子进程重新开一个进程组，方便后续将 `ctrl-c` (`ctrl-z`)
+        // 引起的 `SIGINT` (`SIGTSTP`) 信号传递给前台作业及其所有子进程
+        if (setpgid(0, 0) < 0) {
+           printf("setpgid error\n");
+           exit(0);
+        }
+        // 子进程使用 execve 运行可执行文件
+        if (execve(argv[0], argv, environ) < 0) {
+            printf("tsh: command not found: %s\n", argv[0]);
+            exit(0);
+        }
+        // execve 只有失败才会返回，所以成功了不会执行后面的语句，
+        // 会执行可执行文件的主函数
+    }
+    // 这里开始必定是父进程才会执行
+
+    // 子进程添加至作业列表中
+    int state = is_bg ? BG : FG;
+    addjob(jobs, pid, state, cmdline);
+    // 恢复原本的被阻塞集合
+    Sigprocmask(SIG_SETMASK, &prev_one, NULL);
+    if (is_bg) {
+        // 后台作业需要输出提示信息
+        int jid = pid2jid(pid);
+        printf("[%d] (%d) %s", jid, pid, cmdline);
+    } else {
+        // 前台作业需要阻塞至子进程结束
+        waitfg(pid);
+    }
+}
+```
+
+#### `sigchld_handler`
+
+删除作业部分就需要在 `sigchld_handler` 信号处理程序中进行，我们可以同时完成 `sigchld_handler` 相关的所有操作。
+
+我们再看看闯关开始时提到的需要具备的特性：
+
+> - 处理所有的僵尸进程。如果一个作业由于一个未响应的信号终止，那么 `tsh` 应该识别出这个事件，并打印该作业的 PID 和该信号的描述
+> - 停止的子进程被 `bg <job>` 或者 `fg <job>` 发送的 `SIGCONT` 信号重启
+
+书中 8.4.3 节 (`P516`) 提到使用 `waitpid` 会等待子进程终止或者停止，并且会通过 `status` 传递终止或者停止的子进程的状态信息，可通过 `wait.h` 中定义的宏进行判断。
+
+导致 `waitpid` 返回的原因有三种，我们列出对应的处理方式：
+
+- 子进程调用 `exit` 或者调用 `return` 正常终止：直接从作业列表中删除
+- 子进程因为一个未被捕获的信号终止：先打印相关信息，再从作业列表中删除
+- 子进程被停止（要检测到这个状态，需要在调用时加上 `WUNTRACED` 选项）：先打印相关信息，再更改状态为停止 `ST`
+
+```c
+void sigchld_handler(int sig) {
+    // 保留原本的错误码，结束调用时恢复
+    int olderrno = errno;
+    int status;
+    pid_t pid;
+    // 由于没有其他信号处理程序会使用 jobs ，所以无需阻塞信号
+
+    // 处理所有终止或者停止的子进程，如果没有立即返回
+    while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
+        // 正常退出，直接从作业列表删除
+        if (WIFEXITED(status)) {
+            deletejob(jobs, pid);
+        }
+        // 由于未捕获的信号终止，先打印相关信息，再从作业列表删除
+        if (WIFSIGNALED(status)) {
+            int jid = pid2jid(pid);
+            int signal = WTERMSIG(status);
+            printf("Job [%d] (%d) terminated by signal %d\n", jid, pid, signal);
+            deletejob(jobs, pid);
+        }
+        // 由于信号被停止，先打印相关信息，再将作业状态更改为 ST
+        if (WIFSTOPPED(status)) {
+            struct job_t *job = getjobpid(jobs, pid);
+            int signal = WSTOPSIG(status);
+            printf("Job [%d] (%d) stopped by signal %d\n", job -> jid, pid, signal);
+            job -> state = ST;
+        }
+    }
+    // 使用 WNOHANG 选项时，如果还有子进程存在，那么就会返回 0
+    // 这种情况不算错误
+    if (pid != 0 && errno != ECHILD) {
+        unix_error("waitpid error");
+    }
+
+    // 恢复错误码
+    errno = olderrno;
+}
+```
+
+现在可以继续运行测试用例 `make test04`, `make test05` ，发现输出都与标准程序输出一致，证明我们代码正确无误。而 `make test06` 没有输出子进程被 `SIGINT` 终止的的信息，说明 `SIGINT` 信号没有正常处理，所以接下来需要实现其余信号处理程序了。
+
+### 实现信号处理程序
+
+#### `sigint_handler`
+
+当 shell 收到 `SIGINT` 信号时，对当前的前台作业及其所有子进程发送 `SIGINT` 信号，即对前台作业所在进程组发送 `SIGINT` 信号。
+
+```c
+void sigint_handler(int sig) {
+    // 获取前台作业的
+    pid_t pid = fgpid(jobs);
+    // 对前台作业所在进程组发送 SIGINT 信号
+    if (pid) {
+        kill(-pid, sig);
+    }
+}
+```
+
+#### `sigtstp_handler`
+
+当 shell 收到 `SIGTSTP` 信号时，对当前的前台作业及其所有子进程发送 `SIGTSTP` 信号，即对前台作业所在进程组发送 `SIGTSTP` 信号。
+
+```c
+void sigtstp_handler(int sig) {
+    // 获取前台作业的
+    pid_t pid = fgpid(jobs);
+    // 对前台作业所在进程组发送 SIGTSTP 信号
+    if (pid) {
+        kill(-pid, sig);
+    }
+}
+```
+
+现在可以继续运行测试用例 `make test06`, `make test07`, `make test08` ，发现输出都与标准程序输出一致，证明我们代码正确无误。而 `make test09` 没有输出 JID 为 2 的子进程被唤醒到后台作业的信号，所以接下来需要实现 `do_bgfg` 函数实现。
+
+### 实现 `do_bgfg`
+
+
+
+```c
+void do_bgfg(char **argv) {
+    // 校验参数
+    if (argv[1] == NULL) {
+        printf("%s command requires PID or %%jobid argument\n", argv[0]);
+        return;
+    }
+
+    // 标记是否唤醒到后台作业
+    int is_bg = 0;
+    if (!strcmp(argv[0], "bg")) {
+        is_bg = 1;
+    }
+
+    struct job_t *job;
+    int id;
+    if (sscanf(argv[1], "%%%d", &id) > 0) {
+        // 获取 jid 成功，然后获取对应的作业
+         job = getjobjid(jobs, id);
+         if (job == NULL) {
+            printf("%%%d: No such job\n", id);
+            return;
+         }
+    } else if (sscanf(argv[1], "%d", &id) > 0) {
+        // 获取 pid 成功，然后获取对应的作业
+        job = getjobjid(jobs, id);
+        if (job == NULL) {
+            printf("(%d): No such process\n", id);
+            return;
+        }
+    } else {
+        printf("%s: argument must be a PID or %%jobid\n", argv[0]);
+        return;
+    }
+
+    // 不存在，则直接返回
+    if (job == NULL) {
+        return;
+    }
+
+    // 修改状态，然后给子进程发送 SIGCONT 信号唤醒
+    job -> state = is_bg ? BG : FG;
+    kill(-(job -> pid), SIGCONT);
+
+
+    if (is_bg) {
+        // 后台作业则需要输出相关信息
+        printf("[%d] (%d) %s", job -> jid, job -> pid, job -> cmdline);
+    } else {
+        // 前台作业则需要等到其运行完成
+        waitfg(job -> pid);
+    }
+}
+```
 
 ## 总结
